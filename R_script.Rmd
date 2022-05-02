@@ -103,7 +103,10 @@ models_nest <- by_district %>%
 models_nest_by <- df %>%
 	nest_by(academic_year, district, n_schools) %>%
   summarize(models = estimate_v(data, "white", "hispanic_latino")) %>% 
-  ungroup()
+  mutate(auc = models$auc,
+         v = models$v,
+         v_se = models$v_se) %>% 
+  select(-models)
 ```
 
 
