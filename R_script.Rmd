@@ -26,6 +26,7 @@ options(scipen = 99)
 library(tidyverse)
 library(janitor)
 library(gapr)
+library(ggtext)
 
 theme_set(theme_minimal())
 ```
@@ -119,13 +120,95 @@ nest_and_nest_by <- left_join(models_nest, models_nest_by)
 nest_and_nest_by %>% 
   ggplot(aes(v_nest_by, v_nest)) +
   geom_point(size = 4,
-             color = "gray50") +
+             color = "gray30") +
   geom_line(color = "light blue",
             size = 2) +
   labs(x = "V (`nest_by() %>% summarize()`)",
        y = "V (`group_by() %>% nest() %>% mutate() %>% map()`)") +
   scale_y_continuous(expand = c(.1, .1))
 ```
+
+## 3. Plot 2
+```{r}
+first_100_districts <- unique(models_nest$district)[1:100]
+
+models_plot <- models_nest %>% 
+  filter(district %in% first_100_districts) %>% 
+  mutate(v_above_zero = if_else(v_nest > 0, "#640C90", "#57DBF4"),
+         academic_year = as.factor(academic_year),
+         academic_year = as.numeric(academic_year))
+```
+
+### Using nest_by and summarize
+```{r}
+plots_nest_by <-
+  models_plot %>% 
+  ungroup() %>% 
+  nest_by(district) %>% 
+  summarise(plot_nest_by = list(
+    ggplot(data, aes(academic_year, v_nest)) +
+      geom_hline(yintercept = 0,
+                 color = "red") +
+      geom_line() +
+      geom_errorbar(aes(ymin = v_nest + qnorm(0.025)*v_se_nest,
+                        ymax = v_nest + qnorm(0.975)*v_se_nest),
+                    width = 0.25) +
+      geom_point(aes(color = v_above_zero),
+                 size = 2.5) +
+      scale_color_identity() +
+      scale_x_continuous(breaks = 1:4,
+                         labels = c("2014-2015", "2015-2016",
+                                    "2016-2017", "2017-2018")) +
+      labs(title = glue::glue("Achievement Gap Estimates: {district}"),
+           subtitle = "Negative values indicate <span style='color:#57DBF4'>White</span> students have higher average achievement <br/>Positive values indicate <span style='color:#640C90'>Hispanic/Latino</span> students have higher average achievement",
+           caption = glue::glue("Note: District included {unique(data$n_schools)} schools."),
+           x = "School year",
+           y = "Average achievement difference (SD units)")   +
+      theme(plot.title.position = "plot",
+            plot.subtitle = element_markdown(),
+            legend.position = "none"
+      )
+    )
+  )
+
+plots_nest_by$plot_nest_by[[1]]
+```
+
+### Using pmap
+```{r}
+plots_pmap <- models_plot %>% 
+  group_by(district, n_schools) %>% 
+  nest() %>% 
+  mutate(plots = pmap(list(data, district, n_schools), 
+                     function(.data, .district, .n_schools)
+    ggplot(.data, aes(academic_year, v_nest)) +
+      geom_hline(yintercept = 0, 
+	               color = "red") +
+      geom_line() +
+      geom_errorbar(aes(ymin = v_nest + qnorm(0.025)*v_se_nest,
+                        ymax = v_nest + qnorm(0.975)*v_se_nest),
+                    width = 0.25) +
+      geom_point(aes(color = v_above_zero),
+                 size = 2.5) +
+      scale_color_identity() +
+      scale_x_continuous(breaks = as.numeric(as.factor(.data$academic_year)), 
+                         labels = .data$academic_year) +
+      labs(title = glue::glue("Achievement Gap Estimates: {.district}"),
+           subtitle = "Negative values indicate <span style='color:#57DBF4'>White</span> students have higher average achievement <br/>Positive values indicate <span style='color:#640C90'>Hispanic/Latino</span> students have higher average achievement",
+           caption = glue::glue("Note: District included {.n_schools} schools."),
+           x = "School year",
+           y = "Average achievement difference (SD units)") + 
+      theme( 
+        plot.title.position = "plot",
+        plot.subtitle = element_markdown()
+      )
+    )
+  )
+  
+plots_pmap$plots[[1]]
+```
+
+
 
 
 
