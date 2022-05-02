@@ -208,6 +208,16 @@ plots_pmap <- models_plot %>%
 plots_pmap$plots[[1]]
 ```
 
+## 4. Save the plots
+```{r}
+fs::dir_create(here::here("plots"))
+district_names <- map_chr(str_split(plots_pmap$district, " SD "), 1)
+
+file_names <- glue::glue("{dists}.png")
+paths <- here::here("plots", file_names)
+
+walk2(paths, plots_pmap$plots, ggsave)
+```
 
 
 
