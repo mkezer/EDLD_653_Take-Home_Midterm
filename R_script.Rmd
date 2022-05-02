@@ -97,20 +97,20 @@ models_nest <- by_district %>%
 	mutate(models = map(data, ~ estimate_v(.x, 
 	                                       "white", "hispanic_latino"))) %>% 
   select(-data) %>% 
-  unnest(models)
+  unnest(models) %>% 
+  rename(auc_nest = auc,
+         v_nest = v,
+         v_se_nest = v_se)
 
 # nest_by
 models_nest_by <- df %>%
 	nest_by(academic_year, district, n_schools) %>%
   summarize(models = estimate_v(data, "white", "hispanic_latino")) %>% 
-  mutate(auc = models$auc,
-         v = models$v,
-         v_se = models$v_se) %>% 
+  mutate(auc_nest_by = models$auc,
+         v_nest_by = models$v,
+         v_se_nest_by = models$v_se) %>% 
   select(-models)
 ```
-
-
-
 
 
 
