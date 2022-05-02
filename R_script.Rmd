@@ -84,3 +84,36 @@ df %>%
 
 head(df)
 ```
+
+# Part B: Achievement gaps {.tabset .tabset-fade}
+## 1. Average achievement differences
+```{r}
+# nest
+by_district <- df %>%
+	group_by(academic_year, district, n_schools) %>%
+	nest() 
+
+models_nest <- by_district %>% 
+	mutate(models = map(data, ~ estimate_v(.x, 
+	                                       "white", "hispanic_latino"))) %>% 
+  select(-data) %>% 
+  unnest(models)
+
+# nest_by
+models_nest_by <- df %>%
+	nest_by(academic_year, district, n_schools) %>%
+  summarize(models = estimate_v(data, "white", "hispanic_latino")) %>% 
+  ungroup()
+```
+
+
+
+
+
+
+
+
+
+
+
+
