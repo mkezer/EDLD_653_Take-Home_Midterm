@@ -1,0 +1,86 @@
+---
+title: "Take-home Midterm"
+author: "Murat Kezer"
+output: 
+    html_document:
+      code_download: TRUE
+      toc: TRUE
+      toc_float:
+        collapsed: FALSE
+      toc_depth: 3
+      code_folding: hide
+---
+
+```{r include=F}
+knitr::opts_chunk$set(echo = TRUE, 
+                      tidy = TRUE, 
+                      cache = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE)
+
+options(scipen = 99)
+```
+
+
+```{r, cache = FALSE, results = 'hide', message = FALSE}
+library(tidyverse)
+library(janitor)
+library(gapr)
+
+theme_set(theme_minimal())
+```
+
+
+# Part A: Data {.tabset .tabset-fade}
+## 1. Download and clean data
+
+```{r}
+download_file <- function(year) {
+  link <- glue::glue("https://www.oregon.gov/ode/educator-resources/assessment/TestResults20{year}/pagr_schools_ela_raceethnicity_{year-1}{year}.xlsx")
+  rio::import(link, setclass = "tibble", na = c("-", "--", "*"))
+}
+
+# download data
+df <- map_dfr(15:18, download_file)
+
+# data cleaning
+df %>% 
+  clean_names() %>% 
+  names()
+
+df <- df %>% 
+  clean_names() %>% 
+  filter(student_group %in% c("White", "Hispanic/Latino")) %>% 
+  select(academic_year, district, school, student_group, grade_level, 
+         starts_with("number_level")) %>% 
+  drop_na(number_level_1, number_level_2, number_level_3, number_level_4) %>%
+  pivot_longer(cols = starts_with("number_level"),
+               names_to = "level",
+               values_to = "n",
+               names_prefix = "number_level_"
+               ) %>% 
+  mutate(n = as.numeric(n))
+
+head(df, n = 10)
+```
+
+## 2. Compute variables
+
+```{r}
+df <-
+df %>%
+  group_by(district) %>% 
+  mutate(n_schools = length(unique(school))) %>% 
+  ungroup() %>% 
+  group_by(academic_year, district, student_group, level, n_schools) %>% 
+  summarise(n = sum(n, na.rm = TRUE)) %>% 
+  ungroup() %>%
+	pivot_wider(names_from = "student_group",
+		          values_from = "n") %>%
+	clean_names() %>%
+	drop_na(hispanic_latino, white) %>%
+  mutate(across(hispanic_latino:white, as.integer)) %>% 
+  select(academic_year, district, n_schools, level, everything())
+
+head(df)
+```
